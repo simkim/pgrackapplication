@@ -1,0 +1,18 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    pg (1.5.9)
+    rack (3.1.8)
+    rackup (2.2.1)
+      rack (>= 3)
+
+PLATFORMS
+  arm64-darwin-21
+
+DEPENDENCIES
+  pg
+  rack
+  rackup (~> 2.2)
+
+BUNDLED WITH
+   2.2.20
