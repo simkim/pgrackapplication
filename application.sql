@@ -17,8 +17,10 @@ CREATE OR REPLACE FUNCTION route(in text, in text, out status int, out body text
         _params json;
         _status int;
         _response record;
+        _method ALIAS FOR $1;
+        _path ALIAS FOR $2;
     BEGIN
-        SELECT app INTO _app FROM routes WHERE method = $1 AND path = $2;
+        SELECT app INTO _app FROM routes WHERE method = _method AND path = _path;
         IF NOT FOUND THEN
             status := 404;
             body := 'Not found';
@@ -68,7 +70,7 @@ CREATE OR REPLACE FUNCTION hello(in params json, out status int, out body text)
 CREATE OR REPLACE FUNCTION todo_index(in params json, out status int, out body text)
     AS $$
     DECLARE
-        _todo record;
+        _todo todos%ROWTYPE;
     BEGIN
         body := '<html><body><ul>';
         FOR _todo IN SELECT id, title FROM todos LOOP
@@ -83,7 +85,7 @@ CREATE OR REPLACE FUNCTION todo_show(in params json, out status int, out body te
     AS $$
     DECLARE
         _id bigint;
-        _todo record;
+        _todo todos%ROWTYPE;
     BEGIN
         _id := (params->>'id')::bigint;
         SELECT id, title INTO _todo FROM todos WHERE id = _id;
