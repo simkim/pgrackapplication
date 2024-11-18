@@ -18,6 +18,4 @@ rackup
 
 # Next step du poc
 
-- Retourner le content type dynamiquement
-- Routeur acceptant :id
 - Etre plus transparent sur le protocole rack, récupérer tout l'env (au moins les variables, pas forcement les méthodes)

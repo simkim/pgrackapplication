@@ -8,27 +8,61 @@ CREATE TABLE routes (
     app text NOT NULL
 );
 
+DROP TYPE IF EXISTS response_t CASCADE;
+CREATE TYPE response_t AS (
+    status       integer,
+    body         text,
+    content_type text
+);
+
+DROP TYPE IF EXISTS found_route_t CASCADE;
+CREATE TYPE found_route_t AS (
+    app text,
+    arguments text[]
+);
+
+DROP TYPE IF EXISTS params_t CASCADE;
+CREATE TYPE params_t AS (
+    arguments text[]
+);
+
 -- Framework engine
 
-CREATE OR REPLACE FUNCTION route(in text, in text, out status int, out body text)
+DROP FUNCTION IF EXISTS route_scan(text, text);
+CREATE OR REPLACE FUNCTION route_scan(in text, in text, out found_route found_route_t)
     AS $$
     DECLARE
-        _app text;
-        _params json;
-        _status int;
-        _response record;
         _method ALIAS FOR $1;
         _path ALIAS FOR $2;
     BEGIN
-        SELECT app INTO _app FROM routes WHERE method = _method AND path = _path;
-        IF NOT FOUND THEN
-            status := 404;
-            body := 'Not found';
+        raise notice 'Scanning route %', _path;
+        select found.app as _app, matches[2:] as _arguments into found_route from (select routes.app, regexp_matches(_path, CONCAT('(',replace(path, '/', '\/'),')')) as matches from routes) as found order by length(matches[1]) desc limit 1;
+        raise notice 'Scan return route %', found_route;
+    END;
+    $$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS route(text, text);
+CREATE OR REPLACE FUNCTION route(in text, in text, out response response_t)
+    AS $$
+    DECLARE
+        _app text;
+        _params params_t;
+        _status int;
+        _method ALIAS FOR $1;
+        _path ALIAS FOR $2;
+        found_route found_route_t;
+    BEGIN
+        SELECT * INTO found_route FROM route_scan(_method, _path);
+        IF found_route.app IS NULL THEN
+            raise notice 'Route not found';
+            response := (404, 'Not found', 'text/plain');
         ELSE
-            _params := json_build_object('id', 1);
-            EXECUTE 'SELECT status, body from ' || _app || '($1::json)' INTO _response USING _params;
-            status := _response.status;
-            body := _response.body;
+            raise notice 'Found route %', found_route;
+            _app := found_route.app;
+            _params := ROW(found_route.arguments);
+            raise notice 'Calling app % with params %', _app, _params;
+            EXECUTE 'SELECT status, body, content_type from ' || _app || '($1)' INTO response USING _params;
+            raise notice 'Response %', response;
         END IF;
     END;
     $$ LANGUAGE plpgsql;
@@ -59,43 +93,48 @@ INSERT INTO todos (id, title) VALUES (1, 'Buy milk'), (2, 'Buy eggs'), (3, 'Buy 
 INSERT INTO routes (path, method, app) VALUES ('/', 'GET', 'hello');
 INSERT INTO routes (path, method, app) VALUES ('/hello', 'GET', 'hello');
 INSERT INTO routes (path, method, app) VALUES ('/todos', 'GET', 'todo_index');
-INSERT INTO routes (path, method, app) VALUES ('/todo/1', 'GET', 'todo_show');
+INSERT INTO routes (path, method, app) VALUES ('/todo/(\d+)', 'GET', 'todo_show');
+
 
 -- Application controllers
-
-CREATE OR REPLACE FUNCTION hello(in params json, out status int, out body text)
-    AS $$ SELECT 200, 'Hello world' $$
+DROP FUNCTION IF EXISTS hello(json);
+CREATE OR REPLACE FUNCTION hello(in params params_t, out response response_t)
+    AS $$ SELECT 200, link_to('Hello world', '/todos'), 'text/html' $$
     LANGUAGE SQL;
 
-CREATE OR REPLACE FUNCTION todo_index(in params json, out status int, out body text)
+DROP FUNCTION IF EXISTS todo_index(json);
+CREATE OR REPLACE FUNCTION todo_index(in params params_t, out response response_t)
     AS $$
     DECLARE
         _todo todos%ROWTYPE;
+        body text;
     BEGIN
         body := '<html><body><ul>';
         FOR _todo IN SELECT id, title FROM todos LOOP
             body := body || content_tag('li', link_to(_todo.title, '/todo/'||_todo.id));
         END LOOP;
         body := body || '</ul></body></html>';
-        status := 200;
+        response := (200, body, 'text/html');
     END;
     $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION todo_show(in params json, out status int, out body text)
+DROP FUNCTION IF EXISTS todo_show(json);
+CREATE OR REPLACE FUNCTION todo_show(in params params_t, out response response_t)
     AS $$
     DECLARE
         _id bigint;
         _todo todos%ROWTYPE;
+        body text;
     BEGIN
-        _id := (params->>'id')::bigint;
+        _id := params.arguments[1]::bigint;
         SELECT id, title INTO _todo FROM todos WHERE id = _id;
         IF NOT FOUND THEN
-            status := 404;
-            body := 'Not found';
+            response := (404, 'Not found', 'text/plain');
         ELSE
             body := _todo.id || ': ' || _todo.title;
-            status := 200;
+            response := (200, body, 'text/plain');
         END IF;
+
     END;
     $$ LANGUAGE plpgsql;
 
