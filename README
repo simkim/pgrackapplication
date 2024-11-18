@@ -1,0 +1,22 @@
+# Présentation
+
+Pour apprendre du sql plus avancé propre à pg mais surtout pour le fun, l'idée est d'avoir un serveur applicatif tournant purement en pg/sql/pgplsql
+
+# Installation
+
+Créer une database postgresql 'test' puis installer, lancer le programme
+
+```
+bundle install
+rackup
+```
+
+- http://localhost:9292/
+- http://localhost:9292/todos
+- http://localhost:9292/todo/1
+
+
+# Next step du poc
+
+- Retourner le content type dynamiquement
+- Routeur acceptant :id
