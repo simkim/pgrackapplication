@@ -31,6 +31,16 @@ CREATE OR REPLACE FUNCTION route(in text, in text, out status int, out body text
     END;
     $$ LANGUAGE plpgsql;
 
+-- Framework helpers
+
+CREATE OR REPLACE FUNCTION link_to(in text, in text, out text)
+    AS $$ SELECT '<a href="' || $2 || '">' || $1 || '</a>' $$
+    LANGUAGE SQL;
+
+CREATE OR REPLACE FUNCTION content_tag(in text, in text, out text)
+    AS $$ SELECT '<' || $1 || '>' || $2 || '</' || $1 || '>' $$
+    LANGUAGE SQL;
+
 -- Application data
 
 DROP TABLE IF EXISTS todos;
@@ -60,11 +70,11 @@ CREATE OR REPLACE FUNCTION todo_index(in params json, out status int, out body t
     DECLARE
         _todo record;
     BEGIN
-        body := '<html><body>';
+        body := '<html><body><ul>';
         FOR _todo IN SELECT id, title FROM todos LOOP
-            body := body || '<a href="/todo/'||_todo.id||'">' || _todo.id || ': ' || _todo.title || '</a>' || E'\n';
+            body := body || content_tag('li', link_to(_todo.title, '/todo/'||_todo.id));
         END LOOP;
-        body := body || '</body></html>';
+        body := body || '</ul></body></html>';
         status := 200;
     END;
     $$ LANGUAGE plpgsql;
