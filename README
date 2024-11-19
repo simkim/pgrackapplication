@@ -1,6 +1,10 @@
 # Présentation
 
-Pour apprendre du sql plus avancé propre à pg mais surtout pour le fun, l'idée est d'avoir un serveur applicatif tournant purement en pg/sql/pgplsql
+Un serveur applicatif tournant purement en pg : sql et pgplsql
+
+Pour apprendre du sql plus avancé, propre à pg, mais surtout pour le fun.
+
+Aucune intention de mettre ça en production et même de le maintenir
 
 # Installation
 
@@ -18,4 +22,6 @@ rackup
 
 # Next step du poc
 
+- Implémenter le post avec la création d'un todo
 - Etre plus transparent sur le protocole rack, récupérer tout l'env (au moins les variables, pas forcement les méthodes)
+- Escape html des données rendue
